@@ -8,14 +8,94 @@ window.Utils = {
 		return re.test(str);
 	},
 	
-	//判断金额
-	isPrice: function(amt) {
-		var $reg = /^(([1-9]\d{0,9})|0)(\.\d{1,2})?$/;
-		if(!$reg.test(amt)) {			
-			return false;
+	//函数节流
+	/*
+	 * var testFun = function(){}
+	 * $(window).scroll(throttle(test,500)) || window.onscroll = throttle(test,500);
+	 */
+	throttle: function(method,delay) {
+        var timer=null;
+        return function(){
+            var context=this, args=arguments;
+            clearTimeout(timer);
+            timer=setTimeout(function(){
+                method.apply(context,args);
+            },delay);
+        }
+	},
+	
+	//用途：检查输入是否为数字
+	isNum: function(str) {
+		if( $.trim(str) == "" ){
+			 return false;
+		} 
+		var regu = "^[0-9]*$"; 
+		var re = new RegExp(regu); 
+		return re.test(str);
+	},
+	
+	//去掉字符串空格和换行符
+	trimStr: function(ele) {
+		return ele.replace(/\s+|\r|\n/g, "");
+	},
+	
+	//检查是否含有特殊字符
+	hasSpecific: function(str) {
+		var pattern = new RegExp("[`~!@#$^&*()=|{}':;',\\[\\].<>/?~！@#￥……&*（）——|{}【】‘；：”“'。，、？]");
+		if(pattern.test(str)) {
+			return true;
 		}
 		
-		return true;
+		return false;
+	},
+	
+	//浮点型数字转成int
+	doubleToInt: function(doubleScore) {
+		var scoreMoney = doubleScore + "";
+		var i = scoreMoney.indexOf(".");
+		if( i > 0){
+			return scoreMoney.substring(0,i);
+		}else{
+			return scoreMoney ;
+		}
+	},
+	
+	//js除法精度计算
+	accDiv: function(arg1,arg2) {
+		var t1=0,t2=0,r1,r2;
+		try{t1=arg1.toString().split(".")[1].length}catch(e){}
+		try{t2=arg2.toString().split(".")[1].length}catch(e){}
+		with(Math){			
+		    r1=Number(arg1.toString().replace(".",""))
+		    r2=Number(arg2.toString().replace(".",""))
+		    return (r1/r2)*pow(10,t2-t1);
+		}
+	},
+	
+	//判断金额
+	isPrice: function(_keyword) {
+	    if(_keyword == "0" || _keyword == "0." || _keyword == "0.0" || _keyword == "0.00"){  
+	        _keyword = "0"; return true;  
+	    }else{  
+	        var index = _keyword.indexOf("0");  
+	        var length = _keyword.length;  
+	        if(index == 0 && length>1){/*0开头的数字串*/  
+	            var reg = /^[0]{1}[.]{1}[0-9]{1,2}$/;  
+	            if(!reg.test(_keyword)){  
+	                return false;  
+	            }else{  
+	                return true;  
+	            }  
+	        }else{/*非0开头的数字*/  
+	            var reg = /^[1-9]{1}[0-9]{0,10}[.]{0,1}[0-9]{0,2}$/;  
+	            if(!reg.test(_keyword)){  
+	                return false;  
+	            }else{  
+	                return true;  
+	            }  
+	        }             
+	        return false;  
+	    }
 	},
 	
 	//获取当前页面脚本名称
@@ -27,14 +107,98 @@ window.Utils = {
 	    return strPage;
 	},
 	
-	//获取当前时间
+	//获取上一个月
+	getPreMonth : function() {
+		var date = this.currentDate();
+			
+		var arr = date.split('-');  
+        var year = arr[0]; //获取当前日期的年份  
+        var month = arr[1]; //获取当前日期的月份  
+        var day = arr[2]; //获取当前日期的日  
+        var days = new Date(year, month, 0);  
+        days = days.getDate(); //获取当前日期中月的天数  
+        var year2 = year;  
+        var month2 = parseInt(month) - 1;  
+        if (month2 == 0) {  
+            year2 = parseInt(year2) - 1;  
+            month2 = 12;  
+        }  
+        var day2 = day;  
+        var days2 = new Date(year2, month2, 0);  
+        days2 = days2.getDate();  
+        if (day2 > days2) {  
+            day2 = days2;  
+        }  
+        if (month2 < 10) {  
+            month2 = '0' + month2;  
+        }  
+        var t2 = year2 + '-' + month2 + '-' + day2;  
+        return t2;
+	},
+	
+	//获取下一个月
+	getNextMonth : function() {
+		var date = this.currentDate();
+		
+		var arr = date.split('-');  
+        var year = arr[0]; //获取当前日期的年份  
+        var month = arr[1]; //获取当前日期的月份  
+        var day = arr[2]; //获取当前日期的日  
+        var days = new Date(year, month, 0);  
+        days = days.getDate(); //获取当前日期中的月的天数  
+        var year2 = year;  
+        var month2 = parseInt(month) + 1;  
+        if (month2 == 13) {  
+            year2 = parseInt(year2) + 1;  
+            month2 = 1;  
+        }  
+        var day2 = day;  
+        var days2 = new Date(year2, month2, 0);  
+        days2 = days2.getDate();  
+        if (day2 > days2) {  
+            day2 = days2;  
+        }  
+        if (month2 < 10) {  
+            month2 = '0' + month2;  
+        }  
+      
+        var t2 = year2 + '-' + month2 + '-' + day2;  
+        return t2;  
+	},
+	
+	//获取当前时间 xxxx-xx-xx
 	currentDate: function() {
 		var today = new Date();
 		var Y = today.getFullYear();
 		var M = today.getMonth()+1;
 		var D = today.getDate();
+		if(M < 10) {
+			M = '0'+M;
+		}
+		if(D < 10) {
+			D = '0'+D;
+		}
 
         return Y+'-'+M+'-'+D;
+	},
+	
+	//获取当前时间 xxxx-xx-xx xx:xx:xx
+	getNowFormatDate: function() {
+		var date = new Date();
+	    var seperator1 = "-";
+	    var seperator2 = ":";
+	    var month = date.getMonth() + 1;
+	    var strDate = date.getDate();
+	    if (month >= 1 && month <= 9) {
+	        month = "0" + month;
+	    }
+	    if (strDate >= 0 && strDate <= 9) {
+	        strDate = "0" + strDate;
+	    }
+	    var currentdate = date.getFullYear() + seperator1 + month + seperator1 + strDate
+	            + " " + (date.getHours() < 10 ? '0'+date.getHours() : date.getHours()) + seperator2 + (date.getMinutes() < 10 ? '0'+date.getMinutes() : date.getMinutes())
+	            + seperator2 + (date.getSeconds() < 10 ? '0'+date.getSeconds(): date.getSeconds());
+	    return currentdate;
 	},
 
 	// 校验ip地址的格式
@@ -138,7 +302,7 @@ window.Utils = {
     },
 
     // dialog
-	contentDialog : function(txt) {
+	contentDialog : function(txt, cb) {
 		var fadeTime;
         if ( $('.app-alert-box').length > 0 ) {
             clearTimeout(fadeTime);
@@ -147,7 +311,7 @@ window.Utils = {
 
         this.createCoverBox();
 
-        var html = '<div class="app-alert-box" style="z-index:201;background-color:#333;font-size:16px;color:#fff;border-radius:20px;position:absolute;top:0px;left:0px;box-shadow:0px 1px 4px 0px #333;"><div style="padding:10px 20px;">'+txt+'</div></div>';
+        var html = '<div class="app-alert-box" style="z-index:1000;background-color:#333;font-size:16px;color:#fff;border-radius:20px;position:absolute;top:0px;left:0px;box-shadow:0px 1px 4px 0px #333;"><div style="padding:10px 20px;">'+txt+'</div></div>';
         $('body').append(html);
         this.resSizeBox('app-alert-box');
                 
@@ -155,6 +319,7 @@ window.Utils = {
             $('.app-alert-box').fadeOut(function() {
                 $(this).remove();
                 $('#cover-div').off('click.hide.dialog').remove();
+                cb && (cb());
             });
         }
 
@@ -171,20 +336,21 @@ window.Utils = {
 	},
 	
 	// web alert
-	webAlert : function(txt) {
+	webAlert : function(txt, cb) {
 		var fadeTime;
         if ( $('.app-alert-box').length > 0 ) {
             clearTimeout(fadeTime);
             $('.app-alert-box').remove();
         }
 
-        var html = '<div class="app-alert-box" style="z-index:201;background-color:#333;font-size:16px;color:#fff;border-radius:20px;position:absolute;top:0px;left:0px;box-shadow:0px 1px 4px 0px #333;"><div style="padding:10px 15px;">'+txt+'</div></div>';
+        var html = '<div class="app-alert-box" style="z-index:1000;background-color:#333;font-size:16px;color:#fff;border-radius:20px;position:absolute;top:0px;left:0px;box-shadow:0px 1px 4px 0px #333;"><div style="padding:10px 15px;">'+txt+'</div></div>';
         $('body').append(html);
         this.resSizeBox('app-alert-box');
 
         fadeTime = setTimeout(function() {
             $('.app-alert-box').fadeOut(function() {
                 $(this).remove();
+                cb && (cb());
             });
         },2000);
 	},	
@@ -225,7 +391,8 @@ window.Utils = {
     },
 
 	//设置cookie
-	setCookie : function(name,value,minute,domain) {		
+	setCookie : function(name,value,minute,domain) {
+		domain = domain || document.domain;
         if ( minute > 0 ) {
             var exp  = new Date();
             exp.setTime(exp.getTime() + minute*60*1000);
@@ -245,6 +412,8 @@ window.Utils = {
 
     // 获取两位小数
     formatFloat : function(src, pos) {
+    	//if(this.isNull(src)) return src;
+
         if ( typeof src == 'string' ) {
             src = parseFloat(src);
         }
@@ -303,10 +472,100 @@ window.Utils = {
                 }
             }
         }
+    },
+    
+    //移动终端浏览器版本信息
+    browser : {
+    	versions : function() {
+    		var u = navigator.userAgent, app = navigator.appVersion;
+    		return {    			
+    			trident: u.indexOf('Trident') > -1, //IE内核
+    			presto: u.indexOf('Presto') > -1, //opera内核
+    			webKit: u.indexOf('AppleWebKit') > -1, //苹果、谷歌内核
+    			gecko: u.indexOf('Gecko') > -1 && u.indexOf('KHTML') == -1, //火狐内核
+    		    mobile: !!u.match(/AppleWebKit.*Mobile/i) || !!u.match(/MIDP|SymbianOS|NOKIA|SAMSUNG|LG|NEC|TCL|Alcatel|BIRD|DBTEL|Dopod|PHILIPS|HAIER|LENOVO|MOT-|Nokia|SonyEricsson|SIE-|Amoi|ZTE/), //是否为移动终端
+    			ios: !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/), //ios终端
+    			android: u.indexOf('Android') > -1 || u.indexOf('Linux') > -1, //android终端或者uc浏览器
+    			iPhone: u.indexOf('iPhone') > -1 || u.indexOf('Mac') > -1, //是否为iPhone或者QQHD浏览器
+    			iPad: u.indexOf('iPad') > -1, //是否iPad
+    		    webApp: u.indexOf('Safari') == -1 //是否web应该程序，没有头部与底部
+    		}
+    	}(),
+    	language:(navigator.browserLanguage || navigator.language).toLowerCase()
+    },
+    
+    ajaxPost: function(obj) {
+    	console.log("Ajax POST请求链接："+obj.url);
+    	console.log("Ajax POST请求参数："+JSON.stringify(obj.data));
+    	$.ajax({
+    		type:'POST',
+    		url:obj.url,
+    		data:obj.data,
+    		timeout:obj.timeout || 10000,
+    		beforeSend:function(XMLHttpRequest) {
+    			if(obj.beforeFun) obj.beforeFun();
+    		},
+    		complete:function(XMLHttpRequest, textStatus) {
+    			if(obj.completeFun) obj.completeFun();
+    		},
+    		success:function(data) {
+    			if(typeof data == 'string') {
+    				data = JSON.parse(data);
+    			}
+    			console.log(JSON.stringify(data));
+    			if(obj.callback) obj.callback(data);
+    		},
+    		error:function(XMLHttpRequest, textStatus, errorThrown) {
+    			if(obj.errorFun) {
+    				obj.errorFun();
+    			} else {
+        			if(textStatus == 'timeout') {
+        				Utils.contentDialog('请求超时，请稍后重试。');
+        			} else {
+        				Utils.contentDialog('网络通讯故障，请稍后重试。');
+        			}
+    			}
+    		}
+    	});
+    },
+    
+    ajaxGet: function(obj) {
+    	console.log("Ajax GET请求链接："+obj.url);
+    	console.log("Ajax GRT请求参数："+JSON.stringify(obj.data));
+    	$.ajax({
+    		type:'GET',
+    		url:obj.url,
+    		data:obj.data,
+    		timeout:obj.timeout || 10000,
+    		beforeSend:function(XMLHttpRequest) {
+    			if(obj.beforeFun) obj.beforeFun();
+    		},
+    		complete:function(XMLHttpRequest, textStatus) {
+    			if(obj.completeFun) obj.completeFun();
+    		},
+    		success:function(data) {
+    			if(typeof data == 'string') {
+    				data = JSON.parse(data);
+    			}
+    			console.log(JSON.stringify(data));
+    			if(obj.callback) obj.callback(data);
+    		},
+    		error:function(XMLHttpRequest, textStatus, errorThrown) {
+    			if(obj.errorFun) {
+    				obj.errorFun();
+    			} else {
+        			if(textStatus == 'timeout') {
+        				Utils.contentDialog('请求超时，请稍后重试。');
+        			} else {
+        				Utils.contentDialog('网络通讯故障，请稍后重试。');
+        			}
+    			}
+    		}
+    	});
     }
 };
 
-window.alert = function(text) {
+window.alert = function(text,callback) {
 	var $backdrop = $('<div class="modal-backdrop fade" />').appendTo($(document.body));
 	$backdrop[0].offsetWidth;
 	$backdrop.addClass('in');
@@ -328,18 +587,27 @@ window.alert = function(text) {
 	$back[0].offsetWidth;
 	$back.addClass('in');
 	
-	$('#window-alert-cancel').on('click',function() {
+	var hide = function() {
 		$back.removeClass('in');
 		
 		setTimeout(function() {
 			$back.hide();
 			$backdrop.removeClass('in');
+			if (callback) callback();
 		},300);
 		
 		setTimeout(function() {
 			$backdrop.remove();
 			$back.remove();
 		},150);
+	};
+	
+	$('#window-alert-cancel').on('click',function() {
+		hide();
+	});
+	
+	$('.window-alert').on('click', function(e) {
+		if (e.target === e.currentTarget) hide();
 	});
 };
 
@@ -373,13 +641,16 @@ window.confirm = function(text, callback) {
 		hide();
 	});
 	
+	$('.window-confirm').on('click', function(e) {
+		if (e.target === e.currentTarget) hide();
+	});
+	
 	$('.window-confirm-ok').click(function() {
 		hide();
 		if (callback) callback();
 	});
 	
-	var hide = function() {
-		
+	var hide = function() {		
 		$back.removeClass('in');
 		
 		setTimeout(function() {
