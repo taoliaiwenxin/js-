@@ -290,10 +290,12 @@ if ( typeof jQuery === 'undefined' ) {
 	Loading.timer;
 	
 	Loading.prototype.show = function() {
+		if(Loading.$mask) return;
+		
 		clearTimeout(Loading.timer);
 		if(Loading.$mask) {
-		    Loading.$mask.remove(); 
-    	    Loading.$mask = null;
+		    //Loading.$mask.remove(); 
+    	    //Loading.$mask = null;
 		}
     	
 		Loading.$mask = $(this._html).appendTo($(document.body));
@@ -305,7 +307,7 @@ if ( typeof jQuery === 'undefined' ) {
 		if(!Loading.$mask) return;
 		Loading.$mask.removeClass('show');
 		Loading.timer = setTimeout(function() {
-	    	Loading.$mask.remove(); 
+	    	if(Loading.$mask) Loading.$mask.remove(); 
 	    	Loading.$mask = null;
 	    }, Loading.BACKDROP_TRANSITION_DURATION);
 	}
@@ -371,16 +373,30 @@ if ( typeof jQuery === 'undefined' ) {
 (function($) {
 	'use strict';
 	
+	// 私有的函数节流
+	function _throttle(method,delay) {
+        var timer=null;
+        return function(){
+            var context=this, args=arguments;
+            clearTimeout(timer);
+            timer=setTimeout(function(){
+                method.apply(context,args);
+            },delay);
+        }
+	}
+	
+	//使用element的data属性来标记是否加载全部
 	var ScrollList = function(element, options) {
 		this.$element = $(element);
 		this.options = options;
 		this.end = false;
 		this.$loading = null;
 		this.isLoading = false;
+		this.$element.data('end', 0);
 	}
 	
-	ScrollList.VERSION = '1.1';
-	ScrollList.UPDATE_DATE = '2016.7.25';
+	ScrollList.VERSION = '1.2';
+	ScrollList.UPDATE_DATE = '2017.01.23';
 	ScrollList.AUTHOR = 'LITAO';
 	ScrollList.DEFAULTS = {
 			dataTyoe : 'json' // 模态框初始化之后就立即显示出来
@@ -389,6 +405,7 @@ if ( typeof jQuery === 'undefined' ) {
 	ScrollList.prototype.listener = function() {
 		var that = this;
 		
+		/*
 		$(window).scroll(function(){
 			var scrollTop = $(this).scrollTop();
 			var scrollHeight = $(document).height();
@@ -397,26 +414,59 @@ if ( typeof jQuery === 'undefined' ) {
 				that.loadData();
 			}
 		});
+		*/
+		$(window).scroll(_throttle(function() {
+			var scrollTop = $(this).scrollTop();
+			var scrollHeight = $(document).height();
+			var windowHeight = $(this).height();
+			if(scrollTop + windowHeight+100 >= scrollHeight && that.$element.height()　>= window.screen.availHeight){								
+				that.loadData();
+			}
+		}, 500));
 	}
 	
 	ScrollList.prototype.loadData = function() {
 		var that = this;
 		
-		if(this.isLoading || this.end) return;
+		//if(this.isLoading || this.end) return;
+		console.log(this.$element.data('end'))
+		if(this.isLoading || this.$element.data('end') == 1) return;
 		this.isLoading = true;
 		
 		this.loadingText();
 		$.get(this.options.url,this.options.data, function(data) {
+			//afterFun ==》 获取数据后执行
+			if(that.options.afterFun) that.options.afterFun();
+			
 			that.isLoading = false;
-			that.$loading.remove();
+			if(that.$loading) that.$loading.remove();
 			
 			if(that.options.dataType == 'html') {
-				if(data.trim().length <= 0) {
-					that.end = true;
-				}
+				if(data.trim().length <= 0) 
+					//that.end = true;
+					that.$element.data('end', 1);
 			} else {
 				data = JSON.parse(data);
-				if(data.length < that.options.itemsPerPage) that.end = true;
+				//that.options.getField ==> 返回不一定是数组，而是一个对象的一个键值
+				if(that.options.getField) {
+					if(data[that.options.getField].length <= 0) {
+						//that.end = true;
+						that.$element.data('end', 1);
+					} else {
+						if(data[that.options.getField].length < that.options.itemsPerPage) 
+							//that.end = true;
+							that.$element.data('end', 1);
+					}					
+				} else {
+					if(data.length <= 0) {
+						//that.end = true;
+						that.$element.data('end', 1);
+					} else {
+						if(data.length < that.options.itemsPerPage) 
+							//that.end = true;
+							that.$element.data('end', 1);
+					}					
+				}				
 			}
 			
 			var html = that.options.resultHTML(data);
@@ -426,7 +476,12 @@ if ( typeof jQuery === 'undefined' ) {
 	}
 	
 	ScrollList.prototype.loadingText = function() {
-		this.$loading = $('<div style="margin-top:20px;text-align:center;font-size:14px;"><img src="css/joy/plugin/jquery/images/loading/loading.gif" style="width:16px;vertical-align:middle;"> 正在加载 ...</div>').appendTo(this.$element);
+		//this.options.loadingFun ==> 自定义的loading
+		if(this.options.loadingFun) {
+			this.options.loadingFun();
+		} else {
+			this.$loading = $('<div style="margin-top:20px;text-align:center;font-size:14px;"><img src="css/joy/plugin/jquery/images/loading/loading.gif" style="width:16px;vertical-align:middle;"> 正在加载 ...</div>').appendTo(this.$element);
+		}
 	}
 	
 	function Plugin(option) {
@@ -550,41 +605,106 @@ if ( typeof jQuery === 'undefined' ) {
 
 
 /*******************
- * form 表单校验，代码开发尚未完成
+ * form 表单校验
 *******************/
-/*
 (function($) {
 	'use strict';
 	
 	var Validate = function(element, options) {
 		this.$element = $(element);
 		this.options = options;
+		this.caches = [];
+		
+		this.strateies = {
+				required: function(value,errorMessage) {
+					if(!value || value.lenght == 0) {
+						return errorMessage
+					}
+				},
+				
+				hasSpecific: function(value,errorMessage) {
+					if(Utils.hasSpecific(value)) return errorMessage
+				},
+				
+				validMobileNumber: function(value, errorMessage) {
+					if(!Utils.validMobileNumber(value)) return errorMessage
+				},
+				
+				isPrice: function(value, errorMessage) {
+					if(!Utils.isPrice(value)) return errorMessage
+				},
+				
+				maxValue: function(value, errorMessage, min, max ) {
+					if(value > max) return errorMessage
+				},
+				
+				minValue: function(value, errorMessage, min, max) {
+					if(value < min) return errorMessage
+				}
+		}
 	}
 	
 	Validate.VERSION = '1.1';
-	Validate.UPDATE_DATE = '2016.9.12';
+	Validate.UPDATE_DATE = '2017.2.17';
 	Validate.AUTHOR = 'LITAO';
-	Validate.DEFAULTS = {
-			messages : {
-				required: "这是必填字段",
-				remote: "请修正此字段",
-				email: "请输入有效的电子邮件地址",
-				url: "请输入有效的网址",
-				date: "请输入有效的日期",
-				dateISO: "请输入有效的日期 (YYYY-MM-DD)",
-				number: "请输入有效的数字",
-				digits: "只能输入数字",
-				creditcard: "请输入有效的信用卡号码",
-				equalTo: "你的输入不相同",
-				extension: "请输入有效的后缀",
-				maxlength: $.validate.format("最多可以输入 {0} 个字符"),
-				minlength: $.validate.format("最少要输入 {0} 个字符"),
-				rangelength: $.validate.format("请输入长度在 {0} 到 {1} 之间的字符串"),
-				range: $.validate.format("请输入范围在 {0} 到 {1} 之间的数值"),
-				max: $.validate.format("请输入不大于 {0} 的数值"),
-				min: $.validate.format("请输入不小于 {0} 的数值")
+	
+	Validate.prototype.init = function() {
+		var that = this;
+		
+		this.$element.find('[role="input"]').each(function() {
+			
+			
+			var rule = eval('('+$(this).data("rule")+')');
+
+			
+			
+			for(var key in rule) {
+				var arr = [];
+				
+				arr.push($(this).val());
+				arr.push(rule[key]);
+				if($(this).data('min')) {
+					arr.push($(this).data('min'));
+				}				
+				if($(this).data('max')) {
+					arr.push($(this).data('max'));
+				}
+				
+				that.add(rule, key, arr);
 			}
-	};
+
+		});
+		
+		this.valid();
+	}
+	
+	Validate.prototype.add = function(rule,key,arr) {
+		var that = this;
+		
+		this.caches.push(function() {
+			return that.strateies[key].apply(that,arr)
+		});
+	}
+	
+	Validate.prototype.valid = function() {
+		var tmp = 0;
+		for(var i = 0; i < this.caches.length; i++) {
+			tmp++;
+			
+			var msg = this.caches[i]();
+
+			if(msg) {
+				Utils.contentDialog(msg);
+				break;
+			} else {
+				if(this.caches.length == tmp) {
+					if(this.options && typeof this.options == 'function') {
+						this.options()
+					}
+				}
+			}
+		}
+	}
 	
 	function Plugin(option) {
 		return this.each(function() {
@@ -595,7 +715,7 @@ if ( typeof jQuery === 'undefined' ) {
 			
 			if(!data) $(this).data('yf.form', (data = new Validate(this, options)));
 			
-			data.auto();
+			data.init();
 		});
 	}
 	
@@ -609,4 +729,3 @@ if ( typeof jQuery === 'undefined' ) {
 		  return this;
 	}
 }(window.jQuery));
-*/
